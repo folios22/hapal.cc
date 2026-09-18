@@ -1,0 +1,879 @@
+--[[
+  hapal.cc | Blockstrike Cheat v4
+  Terminal Menu + RAGE features
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ===== НАСТРОЙКИ =====
+local settings = {
+    -- Visuals
+    Box = true,
+    Skeleton = true,
+    Health = true,
+    Chams = true,
+    Color = Color3.fromRGB(0, 255, 255),
+    -- Aim
+    AimEnabled = false,
+    SilentAim = true,
+    SilentMethod = "Auto", -- Auto / Hook / Fake
+    IgnoreWalls = true,
+    ShowFOV = true,
+    FOV = 150,
+    Smoothness = 0.5,
+    TargetPart = "Head",
+    -- Rage
+    ThirdPerson = false,
+    Wallbang = false,
+    NoRecoil = false,
+    Spinbot = false,
+    SpinSpeed = 5, -- радиан в секунду
+}
+
+-- ===== GUI (терминальный стиль) =====
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "hapalcc_v4"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game:GetService("CoreGui")
+
+local function MakeDraggable(frame)
+    frame.Active = true
+    frame.Draggable = true
+end
+
+-- Иконка
+local Icon = Instance.new("TextButton")
+Icon.Size = UDim2.new(0, 45, 0, 45)
+Icon.Position = UDim2.new(0, 15, 0, 15)
+Icon.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+Icon.Text = ">_"
+Icon.TextColor3 = Color3.fromRGB(0, 255, 0)
+Icon.Font = Enum.Font.Code
+Icon.TextSize = 20
+Icon.BorderSizePixel = 0
+Icon.Parent = ScreenGui
+
+local IconCorner = Instance.new("UICorner")
+IconCorner.CornerRadius = UDim.new(0, 4)
+IconCorner.Parent = Icon
+
+MakeDraggable(Icon)
+
+-- Меню
+local Menu = Instance.new("Frame")
+Menu.Size = UDim2.new(0, 360, 0, 500)
+Menu.Position = UDim2.new(0.5, -180, 0.5, -250)
+Menu.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+Menu.BorderColor3 = Color3.fromRGB(0, 255, 0)
+Menu.BorderSizePixel = 2
+Menu.Visible = false
+Menu.Parent = ScreenGui
+
+MakeDraggable(Menu)
+
+-- Заголовок
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+Header.BorderSizePixel = 0
+Header.Parent = Menu
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "hapal.cc v4"
+Title.TextColor3 = Color3.fromRGB(0, 255, 0)
+Title.Font = Enum.Font.Code
+Title.TextSize = 18
+Title.Parent = Header
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -40, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+CloseBtn.Font = Enum.Font.Code
+CloseBtn.TextSize = 16
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = Header
+
+CloseBtn.MouseButton1Click:Connect(function()
+    Menu.Visible = false
+end)
+
+-- Вкладки
+local Tabs = {}
+local TabButtons = {}
+
+local function CreateTab(name)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.25, -2, 0, 30)
+    btn.Position = UDim2.new(#TabButtons * 0.25, 0, 0, 45)
+    btn.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(0, 255, 0)
+    btn.Font = Enum.Font.Code
+    btn.TextSize = 13
+    btn.BorderSizePixel = 0
+    btn.Parent = Menu
+
+    table.insert(TabButtons, btn)
+
+    local tab = Instance.new("Frame")
+    tab.Size = UDim2.new(1, 0, 1, -80)
+    tab.Position = UDim2.new(0, 0, 0, 80)
+    tab.BackgroundTransparency = 1
+    tab.Visible = false
+    tab.Parent = Menu
+    Tabs[name] = tab
+
+    btn.MouseButton1Click:Connect(function()
+        for _, b in ipairs(TabButtons) do
+            b.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+            b.TextColor3 = Color3.fromRGB(0, 255, 0)
+        end
+        btn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+        for _, t in pairs(Tabs) do
+            t.Visible = false
+        end
+        tab.Visible = true
+    end)
+
+    return tab
+end
+
+-- Элементы управления (терминальные)
+local function CreateCheckbox(parent, text, var, yPos)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 160, 0, 20)
+    label.Position = UDim2.new(0, 10, 0, yPos)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.Font = Enum.Font.Code
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = parent
+
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0, 40, 0, 20)
+    toggle.Position = UDim2.new(0, 180, 0, yPos)
+    toggle.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    toggle.Text = settings[var] and "[ON]" or "[OFF]"
+    toggle.TextColor3 = settings[var] and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    toggle.Font = Enum.Font.Code
+    toggle.TextSize = 12
+    toggle.BorderSizePixel = 0
+    toggle.Parent = parent
+
+    toggle.MouseButton1Click:Connect(function()
+        settings[var] = not settings[var]
+        toggle.Text = settings[var] and "[ON]" or "[OFF]"
+        toggle.TextColor3 = settings[var] and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    end)
+end
+
+local function CreateValueButton(parent, text, var, min, max, step, yPos)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 120, 0, 20)
+    label.Position = UDim2.new(0, 10, 0, yPos)
+    label.BackgroundTransparency = 1
+    label.Text = text .. ": " .. tostring(settings[var])
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.Font = Enum.Font.Code
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = parent
+
+    local minus = Instance.new("TextButton")
+    minus.Size = UDim2.new(0, 25, 0, 20)
+    minus.Position = UDim2.new(0, 140, 0, yPos)
+    minus.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    minus.Text = "-"
+    minus.TextColor3 = Color3.fromRGB(255, 0, 0)
+    minus.Font = Enum.Font.Code
+    minus.TextSize = 14
+    minus.BorderSizePixel = 0
+    minus.Parent = parent
+
+    local plus = Instance.new("TextButton")
+    plus.Size = UDim2.new(0, 25, 0, 20)
+    plus.Position = UDim2.new(0, 170, 0, yPos)
+    plus.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    plus.Text = "+"
+    plus.TextColor3 = Color3.fromRGB(0, 255, 0)
+    plus.Font = Enum.Font.Code
+    plus.TextSize = 14
+    plus.BorderSizePixel = 0
+    plus.Parent = parent
+
+    local function update()
+        label.Text = text .. ": " .. tostring(settings[var])
+    end
+
+    minus.MouseButton1Click:Connect(function()
+        settings[var] = math.max(min, settings[var] - step)
+        update()
+    end)
+
+    plus.MouseButton1Click:Connect(function()
+        settings[var] = math.min(max, settings[var] + step)
+        update()
+    end)
+end
+
+-- ===== СОДЕРЖИМОЕ ВКЛАДОК =====
+
+-- VISUALS
+local VisualsTab = CreateTab("VISUALS")
+CreateCheckbox(VisualsTab, "Box", "Box", 10)
+CreateCheckbox(VisualsTab, "Skeleton", "Skeleton", 40)
+CreateCheckbox(VisualsTab, "Health", "Health", 70)
+CreateCheckbox(VisualsTab, "Chams", "Chams", 100)
+
+local ColorLabel = Instance.new("TextLabel")
+ColorLabel.Size = UDim2.new(0, 100, 0, 20)
+ColorLabel.Position = UDim2.new(0, 10, 0, 140)
+ColorLabel.BackgroundTransparency = 1
+ColorLabel.Text = "COLOR:"
+ColorLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+ColorLabel.Font = Enum.Font.Code
+ColorLabel.TextSize = 13
+ColorLabel.TextXAlignment = Enum.TextXAlignment.Left
+ColorLabel.Parent = VisualsTab
+
+local colors = {
+    {Name = "CYAN", Color = Color3.fromRGB(0, 255, 255)},
+    {Name = "RED", Color = Color3.fromRGB(255, 0, 0)},
+    {Name = "GREEN", Color = Color3.fromRGB(0, 255, 0)},
+    {Name = "YELLOW", Color = Color3.fromRGB(255, 255, 0)},
+    {Name = "WHITE", Color = Color3.fromRGB(255, 255, 255)},
+}
+
+for i, col in ipairs(colors) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 50, 0, 20)
+    btn.Position = UDim2.new(0, 10 + (i-1) * 55, 0, 165)
+    btn.BackgroundColor3 = col.Color
+    btn.Text = col.Name
+    btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    btn.Font = Enum.Font.Code
+    btn.TextSize = 10
+    btn.BorderSizePixel = 0
+    btn.Parent = VisualsTab
+
+    btn.MouseButton1Click:Connect(function()
+        settings.Color = col.Color
+    end)
+end
+
+-- AIM
+local AimTab = CreateTab("AIM")
+CreateCheckbox(AimTab, "Enabled", "AimEnabled", 10)
+CreateCheckbox(AimTab, "Silent Aim", "SilentAim", 40)
+CreateCheckbox(AimTab, "Ignore Walls", "IgnoreWalls", 70)
+CreateCheckbox(AimTab, "Show FOV", "ShowFOV", 100)
+CreateValueButton(AimTab, "FOV", "FOV", 50, 500, 10, 130)
+CreateValueButton(AimTab, "Smooth", "Smoothness", 0.1, 1, 0.1, 160)
+
+-- Метод Silent Aim
+local MethodLabel = Instance.new("TextLabel")
+MethodLabel.Size = UDim2.new(0, 160, 0, 20)
+MethodLabel.Position = UDim2.new(0, 10, 0, 190)
+MethodLabel.BackgroundTransparency = 1
+MethodLabel.Text = "METHOD: " .. settings.SilentMethod
+MethodLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+MethodLabel.Font = Enum.Font.Code
+MethodLabel.TextSize = 13
+MethodLabel.TextXAlignment = Enum.TextXAlignment.Left
+MethodLabel.Parent = AimTab
+
+local MethodBtn = Instance.new("TextButton")
+MethodBtn.Size = UDim2.new(0, 60, 0, 20)
+MethodBtn.Position = UDim2.new(0, 180, 0, 190)
+MethodBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MethodBtn.Text = "SWITCH"
+MethodBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+MethodBtn.Font = Enum.Font.Code
+MethodBtn.TextSize = 12
+MethodBtn.BorderSizePixel = 0
+MethodBtn.Parent = AimTab
+
+MethodBtn.MouseButton1Click:Connect(function()
+    if settings.SilentMethod == "Auto" then
+        settings.SilentMethod = "Hook"
+    elseif settings.SilentMethod == "Hook" then
+        settings.SilentMethod = "Fake"
+    else
+        settings.SilentMethod = "Auto"
+    end
+    MethodLabel.Text = "METHOD: " .. settings.SilentMethod
+end)
+
+-- Target Part
+local TargetLabel = Instance.new("TextLabel")
+TargetLabel.Size = UDim2.new(0, 160, 0, 20)
+TargetLabel.Position = UDim2.new(0, 10, 0, 220)
+TargetLabel.BackgroundTransparency = 1
+TargetLabel.Text = "TARGET: " .. settings.TargetPart
+TargetLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+TargetLabel.Font = Enum.Font.Code
+TargetLabel.TextSize = 13
+TargetLabel.TextXAlignment = Enum.TextXAlignment.Left
+TargetLabel.Parent = AimTab
+
+local TargetBtn = Instance.new("TextButton")
+TargetBtn.Size = UDim2.new(0, 60, 0, 20)
+TargetBtn.Position = UDim2.new(0, 180, 0, 220)
+TargetBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TargetBtn.Text = "SWITCH"
+TargetBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+TargetBtn.Font = Enum.Font.Code
+TargetBtn.TextSize = 12
+TargetBtn.BorderSizePixel = 0
+TargetBtn.Parent = AimTab
+
+TargetBtn.MouseButton1Click:Connect(function()
+    if settings.TargetPart == "Head" then
+        settings.TargetPart = "HumanoidRootPart"
+    else
+        settings.TargetPart = "Head"
+    end
+    TargetLabel.Text = "TARGET: " .. settings.TargetPart
+end)
+
+-- RAGE
+local RageTab = CreateTab("RAGE")
+CreateCheckbox(RageTab, "Third Person", "ThirdPerson", 10)
+CreateCheckbox(RageTab, "Wallbang", "Wallbang", 40)
+CreateCheckbox(RageTab, "No Recoil", "NoRecoil", 70)
+CreateCheckbox(RageTab, "Spinbot", "Spinbot", 100)
+CreateValueButton(RageTab, "SpinSpeed", "SpinSpeed", 1, 20, 1, 130)
+
+-- SETTINGS
+local SettingsTab = CreateTab("SETTINGS")
+local UnloadBtn = Instance.new("TextButton")
+UnloadBtn.Size = UDim2.new(0, 180, 0, 30)
+UnloadBtn.Position = UDim2.new(0, 20, 0, 20)
+UnloadBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+UnloadBtn.Text = "UNLOAD"
+UnloadBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+UnloadBtn.Font = Enum.Font.Code
+UnloadBtn.TextSize = 14
+UnloadBtn.BorderSizePixel = 0
+UnloadBtn.Parent = SettingsTab
+
+UnloadBtn.MouseButton1Click:Connect(function()
+    for _, esp in pairs(espTable) do
+        esp.Box:Remove()
+        for _, line in pairs(esp.Skeleton) do line:Remove() end
+        esp.HealthBG:Remove()
+        esp.HealthBar:Remove()
+        if esp.Highlight then esp.Highlight:Destroy() end
+    end
+    if fovCircle then fovCircle:Remove() end
+    ScreenGui:Destroy()
+end)
+
+-- Иконка открытия
+Icon.MouseButton1Click:Connect(function()
+    Menu.Visible = not Menu.Visible
+end)
+
+-- Изначально открываем VISUALS
+TabButtons[1].BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+TabButtons[1].TextColor3 = Color3.fromRGB(0, 0, 0)
+VisualsTab.Visible = true
+
+-- ===== ESP =====
+local espTable = {}
+
+local function CreateESP(plr)
+    if plr == LocalPlayer then return end
+
+    local esp = {
+        Box = Drawing.new("Square"),
+        Skeleton = {},
+        HealthBG = Drawing.new("Square"),
+        HealthBar = Drawing.new("Square"),
+        Highlight = nil,
+    }
+
+    esp.Box.Thickness = 2
+    esp.Box.Color = settings.Color
+    esp.Box.Filled = false
+    esp.Box.Visible = false
+
+    esp.HealthBG.Thickness = 1
+    esp.HealthBG.Color = Color3.fromRGB(0, 0, 0)
+    esp.HealthBG.Filled = true
+    esp.HealthBG.Visible = false
+
+    esp.HealthBar.Thickness = 1
+    esp.HealthBar.Color = Color3.fromRGB(0, 255, 0)
+    esp.HealthBar.Filled = true
+    esp.HealthBar.Visible = false
+
+    -- Chams
+    if plr.Character then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "hapalChams"
+        highlight.FillColor = settings.Color
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Parent = plr.Character
+        esp.Highlight = highlight
+    end
+
+    local connections = {
+        {"Head", "Torso"},
+        {"Torso", "Left Arm"},
+        {"Torso", "Right Arm"},
+        {"Torso", "Left Leg"},
+        {"Torso", "Right Leg"},
+    }
+    for _, conn in ipairs(connections) do
+        local line = Drawing.new("Line")
+        line.Thickness = 2
+        line.Color = settings.Color
+        line.Visible = false
+        esp.Skeleton[conn[1] .. "_" .. conn[2]] = line
+    end
+
+    espTable[plr] = esp
+end
+
+local function RemoveESP(plr)
+    if espTable[plr] then
+        local esp = espTable[plr]
+        esp.Box:Remove()
+        for _, line in pairs(esp.Skeleton) do
+            line:Remove()
+        end
+        esp.HealthBG:Remove()
+        esp.HealthBar:Remove()
+        if esp.Highlight then esp.Highlight:Destroy() end
+        espTable[plr] = nil
+    end
+end
+
+local function OnPlayerAdded(plr)
+    if plr == LocalPlayer then return end
+    plr.CharacterRemoving:Connect(function()
+        RemoveESP(plr)
+    end)
+    plr.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        RemoveESP(plr)
+        CreateESP(plr)
+    end)
+    if plr.Character then
+        task.wait(0.5)
+        CreateESP(plr)
+    end
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    OnPlayerAdded(plr)
+end
+Players.PlayerAdded:Connect(OnPlayerAdded)
+Players.PlayerRemoving:Connect(RemoveESP)
+
+-- ===== УТИЛИТЫ =====
+local function WorldToScreen(pos)
+    local screenPos, onScreen = Camera:WorldToScreenPoint(pos)
+    return Vector2.new(screenPos.X, screenPos.Y), onScreen and screenPos.Z > 0
+end
+
+local function GetRootPart(char)
+    local names = {"HumanoidRootPart", "Torso", "UpperTorso", "LowerTorso", "RootPart", "Root"}
+    for _, name in ipairs(names) do
+        local part = char:FindFirstChild(name)
+        if part and part:IsA("BasePart") then
+            return part
+        end
+    end
+    for _, child in ipairs(char:GetChildren()) do
+        if child:IsA("BasePart") then
+            return child
+        end
+    end
+    return nil
+end
+
+local function GetPart(char, name)
+    local part = char:FindFirstChild(name)
+    if part and part:IsA("BasePart") then
+        return part.Position
+    end
+    return nil
+end
+
+-- ===== БОКС ОТ НОГ ДО ГОЛОВЫ =====
+local function GetBoundingBox2D(char)
+    local head = char:FindFirstChild("Head")
+    local root = GetRootPart(char)
+    if not head or not root then return nil end
+
+    local lowestY = root.Position.Y
+    local highestY = head.Position.Y
+
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            local pos = part.Position
+            if pos.Y < lowestY then lowestY = pos.Y end
+            if pos.Y > highestY then highestY = pos.Y end
+        end
+    end
+
+    local topPos = Vector3.new(head.Position.X, highestY, head.Position.Z)
+    local bottomPos = Vector3.new(head.Position.X, lowestY, head.Position.Z)
+
+    local topScreen, topOnScreen = WorldToScreen(topPos)
+    local bottomScreen, bottomOnScreen = WorldToScreen(bottomPos)
+    if not topOnScreen or not bottomOnScreen then return nil end
+
+    local height = math.abs(topScreen.Y - bottomScreen.Y)
+    if height < 10 then height = 10 end
+
+    local width = height * 0.4
+    if width < 10 then width = 10 end
+
+    local centerX = (topScreen.X + bottomScreen.X) / 2
+    local centerY = (topScreen.Y + bottomScreen.Y) / 2
+
+    return centerX - width/2, centerY - height/2, centerX + width/2, centerY + height/2
+end
+
+local function IsTeammate(plr)
+    if LocalPlayer.Team == nil or plr.Team == nil then return false end
+    return LocalPlayer.Team == plr.Team
+end
+
+local function IsAlive(char)
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        return humanoid.Health > 0 and humanoid:GetState() ~= Enum.HumanoidStateType.Dead
+    end
+    return true
+end
+
+local function IsVisible(part)
+    if settings.Wallbang or settings.IgnoreWalls then return true end
+    local origin = Camera.CFrame.Position
+    local direction = (part.Position - origin).Unit * (part.Position - origin).Magnitude
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    rayParams.FilterDescendantsInstances = {LocalPlayer.Character, part.Parent}
+    local result = workspace:Raycast(origin, direction, rayParams)
+    return result == nil
+end
+
+-- ===== FOV CIRCLE =====
+local fovCircle = Drawing.new("Circle")
+fovCircle.Thickness = 1
+fovCircle.Radius = settings.FOV
+fovCircle.Color = Color3.fromRGB(255, 255, 255)
+fovCircle.Visible = false
+fovCircle.Position = Vector2.new(0, 0)
+
+-- ===== ВЫБОР ЦЕЛИ =====
+local currentTarget = nil
+
+local function IsTargetValid(part)
+    if not part or not part.Parent then return false end
+    local char = part.Parent
+    local plr = Players:GetPlayerFromCharacter(char)
+    if not plr or plr == LocalPlayer or IsTeammate(plr) then return false end
+    if not IsAlive(char) then return false end
+    if not IsVisible(part) then return false end
+
+    local screenPos, onScreen = Camera:WorldToScreenPoint(part.Position)
+    if not onScreen or screenPos.Z <= 0 then return false end
+
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+    return dist <= settings.FOV
+end
+
+local function GetClosestTarget()
+    if currentTarget and IsTargetValid(currentTarget) then
+        return currentTarget
+    end
+
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local closest = nil
+    local closestDist = settings.FOV
+
+    for plr, _ in pairs(espTable) do
+        local char = plr.Character
+        if char and IsAlive(char) and not IsTeammate(plr) then
+            local part = char:FindFirstChild(settings.TargetPart)
+            if not part or not part:IsA("BasePart") then
+                part = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+            end
+            if not part or not part:IsA("BasePart") then
+                part = GetRootPart(char)
+            end
+            if part and IsVisible(part) then
+                local pos, onScreen = WorldToScreen(part.Position)
+                if onScreen then
+                    local dist = (pos - screenCenter).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        closest = part
+                    end
+                end
+            end
+        end
+    end
+
+    currentTarget = closest
+    return closest
+end
+
+-- ===== SILENT AIM (HOOK) =====
+local hookWorks = false
+local oldNamecall
+
+local ok = pcall(function()
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+
+        if settings.SilentAim and settings.SilentMethod ~= "Fake" and (method == "FireServer" or method == "InvokeServer") then
+            if self:IsA("RemoteEvent") or self:IsA("RemoteFunction") then
+                local target = GetClosestTarget()
+                if target then
+                    for i, v in ipairs(args) do
+                        if typeof(v) == "Vector3" then
+                            args[i] = target.Position
+                        elseif typeof(v) == "CFrame" then
+                            args[i] = CFrame.lookAt(v.Position, target.Position)
+                        end
+                    end
+                    return oldNamecall(self, unpack(args))
+                end
+            end
+        end
+
+        return oldNamecall(self, ...)
+    end)
+    hookWorks = true
+end)
+
+if not ok then
+    warn("[SilentAim] hookmetamethod не поддерживается — используется Fake метод")
+    settings.SilentMethod = "Fake"
+end
+
+-- ===== RENDER LOOP =====
+local lastFakeAimTime = 0
+local lastRecoilReset = 0
+
+RunService.RenderStepped:Connect(function(dt)
+    Camera = workspace.CurrentCamera or Camera
+
+    -- Обновляем цвета ESP
+    for _, esp in pairs(espTable) do
+        esp.Box.Color = settings.Color
+        for _, line in pairs(esp.Skeleton) do
+            line.Color = settings.Color
+        end
+        if esp.Highlight then
+            esp.Highlight.FillColor = settings.Color
+        end
+    end
+
+    -- FOV круг
+    fovCircle.Radius = settings.FOV
+    fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    fovCircle.Visible = settings.ShowFOV and (settings.AimEnabled or settings.SilentAim)
+
+    -- ESP отрисовка
+    for plr, esp in pairs(espTable) do
+        local char = plr.Character
+        local shouldDraw = char and IsAlive(char) and not IsTeammate(plr)
+
+        if shouldDraw then
+            local root = GetRootPart(char)
+            if root then
+                -- BOX
+                if settings.Box then
+                    local minX, minY, maxX, maxY = GetBoundingBox2D(char)
+                    if minX then
+                        esp.Box.Visible = true
+                        esp.Box.Position = Vector2.new(minX, minY)
+                        esp.Box.Size = Vector2.new(maxX - minX, maxY - minY)
+                    else
+                        esp.Box.Visible = false
+                    end
+                else
+                    esp.Box.Visible = false
+                end
+
+                -- SKELETON
+                if settings.Skeleton then
+                    local head = GetPart(char, "Head")
+                    local torso = GetPart(char, "Torso") or GetPart(char, "UpperTorso") or GetPart(char, "LowerTorso")
+                    local leftArm = GetPart(char, "Left Arm") or GetPart(char, "LeftHand") or GetPart(char, "LeftUpperArm")
+                    local rightArm = GetPart(char, "Right Arm") or GetPart(char, "RightHand") or GetPart(char, "RightUpperArm")
+                    local leftLeg = GetPart(char, "Left Leg") or GetPart(char, "LeftFoot") or GetPart(char, "LeftUpperLeg")
+                    local rightLeg = GetPart(char, "Right Leg") or GetPart(char, "RightFoot") or GetPart(char, "RightUpperLeg")
+
+                    local points = {
+                        Head = head and WorldToScreen(head),
+                        Torso = torso and WorldToScreen(torso),
+                        ["Left Arm"] = leftArm and WorldToScreen(leftArm),
+                        ["Right Arm"] = rightArm and WorldToScreen(rightArm),
+                        ["Left Leg"] = leftLeg and WorldToScreen(leftLeg),
+                        ["Right Leg"] = rightLeg and WorldToScreen(rightLeg),
+                    }
+
+                    for conn, line in pairs(esp.Skeleton) do
+                        local a, b = conn:match("(.+)_(.+)")
+                        local pa = points[a]
+                        local pb = points[b]
+                        if pa and pb and pa[2] and pb[2] then
+                            line.Visible = true
+                            line.From = pa[1]
+                            line.To = pb[1]
+                        else
+                            line.Visible = false
+                        end
+                    end
+                else
+                    for _, line in pairs(esp.Skeleton) do line.Visible = false end
+                end
+
+                -- HEALTH
+                if settings.Health then
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    local head = char:FindFirstChild("Head")
+                    if humanoid and head then
+                        local headPos, onScreen = WorldToScreen(head.Position)
+                        if onScreen then
+                            local health = humanoid.Health / humanoid.MaxHealth
+                            if health < 0 then health = 0 end
+                            if health > 1 then health = 1 end
+                            local barWidth = 50
+                            local barHeight = 5
+                            local barX = headPos.X - barWidth / 2
+                            local barY = headPos.Y - 30
+
+                            esp.HealthBG.Visible = true
+                            esp.HealthBG.Position = Vector2.new(barX - 1, barY - 1)
+                            esp.HealthBG.Size = Vector2.new(barWidth + 2, barHeight + 2)
+
+                            esp.HealthBar.Visible = true
+                            esp.HealthBar.Position = Vector2.new(barX, barY)
+                            esp.HealthBar.Size = Vector2.new(barWidth * health, barHeight)
+                            esp.HealthBar.Color = Color3.fromRGB(255 * (1 - health), 255 * health, 0)
+                        else
+                            esp.HealthBG.Visible = false
+                            esp.HealthBar.Visible = false
+                        end
+                    else
+                        esp.HealthBG.Visible = false
+                        esp.HealthBar.Visible = false
+                    end
+                else
+                    esp.HealthBG.Visible = false
+                    esp.HealthBar.Visible = false
+                end
+
+                -- CHAMS
+                if settings.Chams then
+                    if not esp.Highlight then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Name = "hapalChams"
+                        highlight.FillColor = settings.Color
+                        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                        highlight.FillTransparency = 0.5
+                        highlight.OutlineTransparency = 0
+                        highlight.Parent = char
+                        esp.Highlight = highlight
+                    end
+                    esp.Highlight.Enabled = true
+                else
+                    if esp.Highlight then
+                        esp.Highlight.Enabled = false
+                    end
+                end
+            else
+                esp.Box.Visible = false
+                for _, line in pairs(esp.Skeleton) do line.Visible = false end
+                esp.HealthBG.Visible = false
+                esp.HealthBar.Visible = false
+            end
+        else
+            esp.Box.Visible = false
+            for _, line in pairs(esp.Skeleton) do line.Visible = false end
+            esp.HealthBG.Visible = false
+            esp.HealthBar.Visible = false
+            if esp.Highlight then esp.Highlight.Enabled = false end
+        end
+    end
+
+    -- ===== RAGE FUNCTIONS =====
+
+    -- Third Person
+    if settings.ThirdPerson then
+        local char = LocalPlayer.Character
+        local root = char and GetRootPart(char)
+        if root then
+            local offset = Vector3.new(0, 3, -8)
+            local targetCFrame = CFrame.new(root.Position) * CFrame.Angles(0, 0, 0) * CFrame.new(offset)
+            Camera.CFrame = targetCFrame
+        end
+    end
+
+    -- No Recoil (восстановление камеры)
+    if settings.NoRecoil then
+        -- Простое решение: если камера дёрнулась, вернуть её в предыдущее положение
+        -- (здесь можно добавить логику, но в общем случае это работает через сброс CFrame)
+        -- Вместо этого мы просто игнорируем отдачу, блокируя RemoteEvent (если найдём)
+        -- Пока заглушка: ничего не делаем, но можно добавить hook для отдачи
+    end
+
+    -- Spinbot
+    if settings.Spinbot then
+        local char = LocalPlayer.Character
+        local root = char and GetRootPart(char)
+        if root then
+            root.CFrame = root.CFrame * CFrame.Angles(0, settings.SpinSpeed * dt, 0)
+        end
+    end
+
+    -- Обычный аим (если включён и не Third Person)
+    if settings.AimEnabled and not settings.SilentAim and not settings.ThirdPerson then
+        local target = GetClosestTarget()
+        if target then
+            local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, target.Position)
+            local alpha = 1 - math.exp(-settings.Smoothness * dt * 60)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, alpha)
+        end
+    end
+
+    -- Fake Silent Aim (если выбран или hook не работает)
+    if settings.SilentAim and (settings.SilentMethod == "Fake" or not hookWorks) then
+        if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+            local target = GetClosestTarget()
+            if target then
+                local oldCFrame = Camera.CFrame
+                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, target.Position)
+                task.wait(0.01)
+                Camera.CFrame = oldCFrame
+            end
+        end
+    end
+end)
+
+print("[hapal.cc v4] Loaded — иконка >_ слева сверху")
